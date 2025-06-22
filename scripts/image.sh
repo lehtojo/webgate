@@ -39,4 +39,4 @@ umount "${mount_directory}"
 rmdir "${mount_directory}"
 
 echo
-echo "System image created at: ${output_image}"
+echo "System image created at: out/system.img"
