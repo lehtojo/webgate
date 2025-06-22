@@ -5,6 +5,8 @@ FROM debian:trixie-slim
 # TODO: Verify dependencies (kmod might not be needed)
 RUN apt-get update && \
   apt-get install -y \
+    bc \
+    bison \
     build-essential \
     byacc \
     clang \
@@ -20,6 +22,7 @@ RUN apt-get update && \
     libelf-dev \
     libexpat1-dev \
     libglvnd-core-dev \
+    libssl-dev \
     libpciaccess-dev \
     libudev-dev \
     libunwind-dev \
