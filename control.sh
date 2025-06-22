@@ -17,13 +17,14 @@ if ! docker image inspect "$IMAGE_NAME" > /dev/null 2>&1; then
   docker build -t "$IMAGE_NAME" "$PROJECT_DIRECTORY"
 fi
 
-# Ensure the data and output directories exist
 mkdir -p "${PROJECT_DIRECTORY}/data"
+mkdir -p "${PROJECT_DIRECTORY}/extra"
 mkdir -p "${PROJECT_DIRECTORY}/out"
 
 docker run --rm --privileged \
   --name "$CONTAINER_NAME" \
   -v "${PROJECT_DIRECTORY}/data:/workspace/data" \
+  -v "${PROJECT_DIRECTORY}/extra:/workspace/extra" \
   -v "${PROJECT_DIRECTORY}/modules:/workspace/modules" \
   -v "${PROJECT_DIRECTORY}/out:/workspace/out" \
   -v "${PROJECT_DIRECTORY}/scripts:/workspace/scripts" \

@@ -11,6 +11,7 @@ usage() {
   echo "  build      - Build modules"
   echo "  install    - Install modules"
   echo "  filesystem - Create filesystem"
+  echo "  extra      - Copy files from extra directory to filesystem directory"
   echo "  bootloader - Setup bootloader"
   echo "  image      - Create image"
   echo ""
@@ -54,6 +55,10 @@ execute_command() {
     filesystem)
       echo "==> Executing: filesystem"
       "${scripts_directory}/filesystem.sh" "${out_directory}"
+      ;;
+    extra)
+      echo "==> Executing: extra"
+      "${scripts_directory}/extra.sh" "${out_directory}"
       ;;
     bootloader)
       echo "==> Executing: bootloader"
