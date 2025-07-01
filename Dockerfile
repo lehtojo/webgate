@@ -13,6 +13,10 @@ RUN apt-get update && \
     cmake \
     cpio \
     dosfstools \
+    fontconfig \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    fonts-noto-core \
     flex \
     git \
     glslang-tools \
@@ -22,16 +26,22 @@ RUN apt-get update && \
     libelf-dev \
     libexpat1-dev \
     libglvnd-core-dev \
+    libnspr4 \
+    libnss3 \
     libssl-dev \
     libpciaccess-dev \
+    libpolly-19-dev \
     libudev-dev \
     libunwind-dev \
+    llvm-19-dev \
+    llvm-spirv-19 \
     meson \
     ninja-build \
     pkg-config \
     python3-mako \
     python3-pip \
-    llvm-spirv-19 \
+    rdfind \
+    rsync \
     systemd-ukify \
     util-linux \
     zstd && \
