@@ -10,18 +10,6 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-cleanup() {
-  # Recover the old root directory in case of error
-  if [ -d "${root_directory}-old" ] && [ -d "${root_directory}" ]; then
-    echo "Recovering output directory..."
-    rm -rf "${root_directory}"
-    mv "${root_directory}-old" "${root_directory}"
-    echo "Output directory recovered."
-  fi
-}
-
-trap cleanup EXIT
-
 data_directory="$1"
 output_directory="$2"
 
@@ -39,11 +27,7 @@ fi
 
 root_directory="${output_directory}/root"
 
-# If the old root directory exists, rename it for reversibility
-if [ -d "${root_directory}" ]; then
-  mv "${root_directory}" "${root_directory}-old"
-fi
-
+rm --recursive --one-file-system --force "${root_directory}"
 mkdir -p "${root_directory}"
 
 for module_path in "${data_directory}"/*/; do
@@ -56,8 +40,8 @@ for module_path in "${data_directory}"/*/; do
   
   if [ -f "${install_script}" ]; then
     echo "Running install for ${module_name}..."
-    cd "${module_path}" || exit 1
-    if ! sh install.sh "${output_directory}"; then
+    cd "$module_path" || exit 1
+    if ! sh install.sh "$output_directory"; then
       echo "ERROR: Install failed for module ${module_name}"
       exit 1
     fi
@@ -66,10 +50,5 @@ for module_path in "${data_directory}"/*/; do
     echo "INFO: No install script found for module ${module_name}"
   fi
 done
-
-# Remove the old root directory if it exists
-if [ -d "${root_directory}-old" ]; then
-  rm -rf "${root_directory}-old"
-fi
 
 echo "All modules installed successfully."
