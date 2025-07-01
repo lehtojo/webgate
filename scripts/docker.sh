@@ -5,15 +5,15 @@ usage() {
   echo "Usage: $0 <command-1> [command-2] [command-3] ..."
   echo ""
   echo "Available commands:"
-  echo "  sync       - Sync modules to data directory"
-  echo "  attach     - Attach modules"
-  echo "  setup      - Setup modules"
-  echo "  build      - Build modules"
-  echo "  install    - Install modules"
-  echo "  filesystem - Create filesystem"
-  echo "  extra      - Copy files from extra directory to filesystem directory"
-  echo "  bootloader - Setup bootloader"
-  echo "  image      - Create image"
+  echo "  sync        - Sync modules to data directory"
+  echo "  attach      - Attach modules"
+  echo "  setup       - Setup modules"
+  echo "  build       - Build modules"
+  echo "  install     - Install modules"
+  echo "  postinstall - Postinstall modules"
+  echo "  filesystem  - Create filesystem"
+  echo "  bootloader  - Setup bootloader"
+  echo "  image       - Create image"
   echo ""
   echo "Multiple commands can be specified and will be executed in sequence."
 }
@@ -52,13 +52,14 @@ execute_command() {
       echo "==> Executing: install"
       "${modules_directory}/install.sh" "${data_directory}" "${out_directory}"
       ;;
+    postinstall)
+      echo "==> Executing: postinstall"
+      "${scripts_directory}/postinstall.sh" "${out_directory}"
+      "${modules_directory}/postinstall.sh" "${data_directory}" "${out_directory}"
+      ;;
     filesystem)
       echo "==> Executing: filesystem"
       "${scripts_directory}/filesystem.sh" "${out_directory}"
-      ;;
-    extra)
-      echo "==> Executing: extra"
-      "${scripts_directory}/extra.sh" "${out_directory}"
       ;;
     bootloader)
       echo "==> Executing: bootloader"
