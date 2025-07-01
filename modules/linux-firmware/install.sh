@@ -13,6 +13,12 @@ fi
 MODULE_DIRECTORY=$(dirname "$0")
 OUTPUT_DIRECTORY="$1"
 
+if [ ! -d "${MODULE_DIRECTORY}/out" ]; then
+  mkdir -p "${MODULE_DIRECTORY}/out"
+  DESTDIR="${MODULE_DIRECTORY}/out" make install dedup
+fi
+
+mkdir -p "${OUTPUT_DIRECTORY}/root/lib/firmware"
+
 # TODO: We need a nice way to select firmware
-mkdir -p "${OUTPUT_DIRECTORY}/root/lib/firmware/amdgpu"
-cp -r "${MODULE_DIRECTORY}/amdgpu/." "${OUTPUT_DIRECTORY}/root/lib/firmware/amdgpu"
+cp -r --no-dereference "${MODULE_DIRECTORY}/out/lib/firmware/amdgpu/." "${OUTPUT_DIRECTORY}/root/lib/firmware/amdgpu/"
