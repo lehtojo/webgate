@@ -27,7 +27,7 @@ echo "Image size: ${image_folder_size} MiB"
 
 # Create and format the system image
 truncate -s "${total_size}M" "${output_image}"
-mkfs.vfat -F 32 "${output_image}"
+mkfs.vfat -F 32 "${output_image}" 1>/dev/null
 
 # Mount image and copy files inside it
 mount_directory="${output_directory}/mount"
