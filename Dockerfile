@@ -44,8 +44,29 @@ RUN apt-get update && \
     rsync \
     systemd-ukify \
     util-linux \
+    wget \
     zstd && \
   rm -rf /var/lib/apt/lists/*
+
+# Setup Rust toolchain
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUST_VERSION=1.88.0
+
+RUN wget -q -O rustup.sh https://sh.rustup.rs && \
+    chmod +x rustup.sh && \
+    ./rustup.sh -y --no-modify-path --profile minimal --default-toolchain "$RUST_VERSION" && \
+    rm rustup.sh && \
+    architecture=$(uname -m) && \
+    case "$architecture" in \
+        x86_64)  target="x86_64-unknown-linux-musl" ;; \
+        aarch64) target="aarch64-unknown-linux-musl" ;; \
+        armv7l)  target="armv7-unknown-linux-musleabihf" ;; \
+        *)       echo "Unsupported architecture: $architecture" && exit 1 ;; \
+    esac && \
+    rustup target add "$target" && \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME
 
 WORKDIR /
 ENTRYPOINT [ "/workspace/scripts/docker.sh" ]
