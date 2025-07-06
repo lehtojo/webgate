@@ -35,6 +35,7 @@ RUN apt-get update && \
     libunwind-dev \
     llvm-19-dev \
     llvm-spirv-19 \
+    lsb-release \
     meson \
     ninja-build \
     pkg-config \

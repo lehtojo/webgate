@@ -1,0 +1,343 @@
+diff --git a/content/shell/browser/shell.cc b/content/shell/browser/shell.cc
+index b114fbb4bed44..a28ea125f5528 100644
+--- a/content/shell/browser/shell.cc
++++ b/content/shell/browser/shell.cc
+@@ -144,6 +144,31 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
+   return shell;
+ }
+ 
++#if !BUILDFLAG(IS_ANDROID)
++// static
++Shell* Shell::GetShellByNativeWindow(ui::PlatformWindow* platform_window) {
++  LOG(INFO) << "Number of open shells: " << windows_.size();
++
++  for (Shell* shell : windows_) {
++    aura::WindowTreeHostPlatform* window_tree_host_platform =
++      aura::WindowTreeHostPlatform::GetHostForWindow(shell->window());
++
++    if (!window_tree_host_platform) {
++      LOG(ERROR) << "Shell does not have an associated WindowTreeHostPlatform";
++      continue;
++    }
++
++    if (window_tree_host_platform->platform_window() == platform_window) {
++      LOG(INFO) << "Successfully found Shell associated with WindowTreeHostPlatform";
++      return shell;
++    }
++  }
++
++  LOG(ERROR) << "No Shell found for the specified PlatformWindow";
++  return nullptr;
++}
++#endif // !BUILDFLAG(IS_ANDROID)
++
+ // static
+ void Shell::SetMainMessageLoopQuitClosure(base::OnceClosure quit_closure) {
+   GetMainMessageLoopQuitClosure() = std::move(quit_closure);
+diff --git a/content/shell/browser/shell.h b/content/shell/browser/shell.h
+index aeb5a44a2761e..1e86d440a1773 100644
+--- a/content/shell/browser/shell.h
++++ b/content/shell/browser/shell.h
+@@ -22,6 +22,10 @@
+ #include "ui/gfx/geometry/size.h"
+ #include "ui/gfx/native_widget_types.h"
+ 
++#if !BUILDFLAG(IS_ANDROID)
++#include "ui/aura/window_tree_host_platform.h"
++#endif // !BUILDFLAG(IS_ANDROID)
++
+ class GURL;
+ 
+ namespace content {
+@@ -85,6 +89,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
+   // Returns the currently open windows.
+   static std::vector<Shell*>& windows() { return windows_; }
+ 
++#if !BUILDFLAG(IS_ANDROID)
++  // Reuturns the shell associated with the specified platform window or null pointer
++  static Shell* GetShellByNativeWindow(ui::PlatformWindow* platform_window);
++#endif
++
+   // Stores the supplied |quit_closure|, to be run when the last Shell instance
+   // is destroyed.
+   static void SetMainMessageLoopQuitClosure(base::OnceClosure quit_closure);
+diff --git a/content/shell/browser/shell_browser_main_parts.cc b/content/shell/browser/shell_browser_main_parts.cc
+index 76ba15e7f865d..8e6e45c35bf65 100644
+--- a/content/shell/browser/shell_browser_main_parts.cc
++++ b/content/shell/browser/shell_browser_main_parts.cc
+@@ -43,6 +43,13 @@
+ #include "ui/base/resource/resource_bundle.h"
+ #include "url/gurl.h"
+ 
++// CUSTOM: Includes for the patch below
++#if BUILDFLAG(IS_OZONE)
++#include "ui/ozone/public/ozone_platform.h"
++#include "ui/display/manager/display_manager.h"
++#include "ui/display/types/native_display_delegate.h"
++#endif
++
+ #if BUILDFLAG(IS_ANDROID)
+ #include "components/crash/content/browser/child_exit_observer_android.h"
+ #include "components/crash/content/browser/child_process_crash_observer_android.h"
+@@ -115,6 +122,13 @@ ShellBrowserMainParts::ShellBrowserMainParts() = default;
+ ShellBrowserMainParts::~ShellBrowserMainParts() = default;
+ 
+ void ShellBrowserMainParts::PostCreateMainMessageLoop() {
++#if BUILDFLAG(IS_OZONE)
++  // CUSTOM: We need to pass the UI task runner, so that input system works (evdev)
++  CHECK(base::SingleThreadTaskRunner::HasCurrentDefault());
++  ui::OzonePlatform::GetInstance()->PostCreateMainMessageLoop(
++      base::DoNothing(), base::SingleThreadTaskRunner::GetCurrentDefault());
++#endif
++
+ #if BUILDFLAG(IS_CHROMEOS)
+   ash::DBusThreadManager::Initialize();
+   if (floss::features::IsFlossEnabled()) {
+@@ -187,6 +201,14 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
+ 
+   InitializeBrowserContexts();
+   Shell::Initialize(CreateShellPlatformDelegate());
++
++  // CUSTOM: We need to configure the display (see ShellDesktopControllerAura::ShellDesktopControllerAura)
++  // TODO: Do not use a raw pointer
++  auto* display_configurator_ = new display::DisplayConfigurator();
++  display_configurator_->Init(
++      ui::OzonePlatform::GetInstance()->CreateNativeDisplayDelegate(), false);
++  display_configurator_->ForceInitialConfigure();
++
+   net::NetModule::SetResourceProvider(PlatformResourceProvider);
+   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
+   InitializeMessageLoopContext();
+diff --git a/ui/display/manager/display_configurator.cc b/ui/display/manager/display_configurator.cc
+index 70aad1d245047..9488600c4381d 100644
+--- a/ui/display/manager/display_configurator.cc
++++ b/ui/display/manager/display_configurator.cc
+@@ -567,7 +567,8 @@ DisplayConfigurator::DisplayConfigurator()
+     : state_controller_(nullptr),
+       mirroring_controller_(nullptr),
+       is_panel_fitting_enabled_(false),
+-      configure_displays_(base::SysInfo::IsRunningOnChromeOS()),
++      // CUSTOM: We need to configure displays on our platform as well
++      configure_displays_(true),
+       current_display_state_(MULTIPLE_DISPLAY_STATE_INVALID),
+       current_power_state_(chromeos::DISPLAY_POWER_ALL_ON),
+       requested_display_state_(MULTIPLE_DISPLAY_STATE_INVALID),
+diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
+index 1b5d52cbb314d..7c6f50fd790a1 100644
+--- a/ui/gfx/linux/gbm_wrapper.cc
++++ b/ui/gfx/linux/gbm_wrapper.cc
+@@ -221,8 +221,14 @@ class Buffer final : public ui::GbmBuffer {
+ 
+  private:
+   static void UnmapGbmBo(void* pixels, void* context) {
++    // CUSTOM: For whatever reason this causes a dangling pointer error on amdgpu.
++    // [DanglingSignature]	base::debug::CollectStackTrace()	mojo::SimpleWatcher::Context::Notify()	ui::gbm_wrapper::Buffer::UnmapGbmBo()	mojo::SimpleWatcher::Context::Notify()
++    // [DanglingPtr](1/3) A raw_ptr/raw_ref is dangling.
++    // [DanglingPtr](2/3) First, the memory was freed at:
++    // ...
++    // dmabuf import failed to mmap: Operation not permitted
+     Buffer* buffer = static_cast<Buffer*>(context);
+-    gbm_bo_unmap(buffer->bo_, buffer->mmap_data_);
++    // gbm_bo_unmap(buffer->bo_, buffer->mmap_data_);
+     buffer->mmap_data_ = nullptr;
+   }
+ 
+diff --git a/ui/ozone/platform/drm/gpu/drm_gpu_display_manager.cc b/ui/ozone/platform/drm/gpu/drm_gpu_display_manager.cc
+index 3c9f28a1b7010..fd97c2b599094 100644
+--- a/ui/ozone/platform/drm/gpu/drm_gpu_display_manager.cc
++++ b/ui/ozone/platform/drm/gpu/drm_gpu_display_manager.cc
+@@ -340,13 +340,33 @@ MovableDisplaySnapshots DrmGpuDisplayManager::GetDisplays() {
+                                  display_info->connector()->connector_id);
+         });
+ 
++    // CUSTOM:
++    // The display list now contains only valid displays.
++    // Keep only the target display.
++    // The target display index could be set from the command line.
++    constexpr size_t target_display_index = 0;
++
++    display_infos.erase(
++      display_infos.begin() + target_display_index + 1,
++      display_infos.end());
++
++    display_infos.erase(
++      display_infos.begin(),
++      display_infos.begin() + target_display_index);
++
+     // Consolidate all display infos that belong to the same tiled display into
+     // one.
+     ConsolidateTiledDisplayInfo(display_infos);
+ 
+     for (auto& display_info : display_infos) {
+-      display_snapshots.emplace_back(CreateDisplaySnapshot(
+-          *drm, display_info.get(), static_cast<uint8_t>(device_index)));
++      std::unique_ptr<display::DisplaySnapshot> display_snapshot =
++          CreateDisplaySnapshot(*drm, display_info.get(),
++                                static_cast<uint8_t>(device_index));
++
++      LOG(INFO) << "Using the following display: "
++                << display_snapshot->ToString();
++
++      display_snapshots.emplace_back(std::move(display_snapshot));
+ 
+       display::DisplaySnapshot* current_display_snapshot =
+           display_snapshots.back().get();
+diff --git a/ui/ozone/platform/drm/gpu/screen_manager.cc b/ui/ozone/platform/drm/gpu/screen_manager.cc
+index 901760c4138ab..5506dd3f25456 100644
+--- a/ui/ozone/platform/drm/gpu/screen_manager.cc
++++ b/ui/ozone/platform/drm/gpu/screen_manager.cc
+@@ -859,6 +859,12 @@ void ScreenManager::UpdateControllerToWindowMapping() {
+     if (it != window_to_controller_map.end())
+       controller = it->second;
+ 
++    // CUSTOM: Use the first controller, because the code above does not find any DRM window
++    if (!controller && !controllers_.empty()) {
++      controller = controllers_.front().get();
++      printf("CUSTOM: ScreenManager::UpdateControllerToWindowMapping: Using HardwareDisplayController %p\n", controller);
++    }
++
+     bool should_enable = controller && pair.second->GetController() &&
+                          pair.second->GetController() != controller;
+     pair.second->SetController(controller);
+diff --git a/ui/ozone/platform/drm/host/drm_display_host_manager.cc b/ui/ozone/platform/drm/host/drm_display_host_manager.cc
+index 74712e3985998..fa14b5184e50f 100644
+--- a/ui/ozone/platform/drm/host/drm_display_host_manager.cc
++++ b/ui/ozone/platform/drm/host/drm_display_host_manager.cc
+@@ -348,6 +348,16 @@ DrmDisplayHost* DrmDisplayHostManager::GetDisplay(int64_t display_id) {
+   return it->get();
+ }
+ 
++DrmDisplayHost* DrmDisplayHostManager::GetDisplayByIndex(size_t display_index) {
++  if (display_index >= displays_.size()) {
++    LOG(ERROR) << "Invalid display index: " << display_index
++               << ", number of displays: " << displays_.size();
++    return nullptr;
++  }
++
++  return displays_[display_index].get();
++}
++
+ void DrmDisplayHostManager::AddDelegate(DrmNativeDisplayDelegate* delegate) {
+   DCHECK(!delegate_);
+   delegate_ = delegate;
+diff --git a/ui/ozone/platform/drm/host/drm_display_host_manager.h b/ui/ozone/platform/drm/host/drm_display_host_manager.h
+index 6d3f4a3ee2bae..4afeb7dc727e3 100644
+--- a/ui/ozone/platform/drm/host/drm_display_host_manager.h
++++ b/ui/ozone/platform/drm/host/drm_display_host_manager.h
+@@ -47,6 +47,7 @@ class DrmDisplayHostManager : public DeviceEventObserver, GpuThreadObserver {
+   ~DrmDisplayHostManager() override;
+ 
+   DrmDisplayHost* GetDisplay(int64_t display_id);
++  DrmDisplayHost* GetDisplayByIndex(size_t display_index);
+ 
+   // External API.
+   void AddDelegate(DrmNativeDisplayDelegate* delegate);
+diff --git a/ui/ozone/platform/drm/host/drm_window_host.cc b/ui/ozone/platform/drm/host/drm_window_host.cc
+index cf06fac069ae5..4e5d8e3d90e8c 100644
+--- a/ui/ozone/platform/drm/host/drm_window_host.cc
++++ b/ui/ozone/platform/drm/host/drm_window_host.cc
+@@ -20,6 +20,8 @@
+ #include "ui/ozone/platform/drm/host/drm_window_host_manager.h"
+ #include "ui/ozone/platform/drm/host/gpu_thread_adapter.h"
+ 
++#include "content/shell/browser/shell.h"
++
+ namespace ui {
+ 
+ DrmWindowHost::DrmWindowHost(PlatformWindowDelegate* delegate,
+@@ -77,11 +79,55 @@ bool DrmWindowHost::IsVisible() const {
+ 
+ void DrmWindowHost::PrepareForShutdown() {}
+ 
++gfx::Size GetDisplaySizeOrDefault(
++  const raw_ptr<DrmDisplayHostManager> display_manager,
++  size_t display_index,
++  const gfx::Size& default_size
++) {
++  DrmDisplayHost* display = display_manager->GetDisplayByIndex(display_index);
++
++  if (!display) {
++    LOG(ERROR) << "Display not found at index " << display_index;
++    return default_size;
++  }
++
++  display::DisplaySnapshot* display_snapshot = display->snapshot();
++
++  if (!display_snapshot) {
++    LOG(ERROR) << "Display snapshot is not available for display at index "
++               << display_index;
++    return default_size;
++  }
++
++  const display::DisplayMode* mode = display_snapshot->current_mode();
++
++  if (!mode) {
++    LOG(ERROR) << "Current mode is not available for display at index "
++               << display_index;
++    return default_size;
++  }
++
++  return mode->size();
++}
++
+ void DrmWindowHost::SetBoundsInPixels(const gfx::Rect& bounds) {
+-  bool origin_changed = bounds_.origin() != bounds.origin();
+-  bounds_ = bounds;
++  auto display_size = GetDisplaySizeOrDefault(display_manager_, 0, bounds.size());
++  auto display_bounds = gfx::Rect(display_size);
++  LOG(INFO) << "Resizing DRM window to " << display_size.ToString();
++
++  bool origin_changed = bounds_.origin() != display_bounds.origin();
++  bounds_ = display_bounds;
+   delegate_->OnBoundsChanged({origin_changed});
+   SendBoundsChange();
++
++  auto* shell = content::Shell::GetShellByNativeWindow(this);
++
++  if (shell) {
++    LOG(INFO) << "Resizing web contents to " << display_bounds.ToString();
++    shell->window()->SetBounds(display_bounds);
++  } else {
++    LOG(ERROR) << "Shell not found for the current DRM window";
++  }
+ }
+ 
+ gfx::Rect DrmWindowHost::GetBoundsInPixels() const {
+diff --git a/ui/views/widget/widget.cc b/ui/views/widget/widget.cc
+index 95d08ccc467f0..f2b1cbeafd16d 100644
+--- a/ui/views/widget/widget.cc
++++ b/ui/views/widget/widget.cc
+@@ -530,6 +530,8 @@ void Widget::Init(InitParams params) {
+   // Copy the elements of params that will be used after it is moved.
+   const InitParams::Type type = params.type;
+   const gfx::Rect bounds = params.bounds;
++  // CUSTOM: See below.
++  // const ui::mojom::WindowShowState show_state = ui::mojom::WindowShowState::kFullscreen;
+   const ui::mojom::WindowShowState show_state = params.show_state;
+   WidgetDelegate* delegate = params.delegate;
+   bool should_set_initial_bounds = true;
+@@ -569,6 +571,9 @@ void Widget::Init(InitParams params) {
+       SetInitialBounds(bounds);
+     }
+ 
++    // CUSTOM: Alternatively, setting fullscreen mode will remove the content shell borders
++    // SetFullscreen(true, display::kInvalidDisplayId);
++
+     // Perform the initial layout. This handles the case where the size might
+     // not actually change when setting the initial bounds. If it did, child
+     // views won't have a dirty Layout state, so won't do any work.
+diff --git a/ui/views/window/default_frame_view.cc b/ui/views/window/default_frame_view.cc
+index 4f8eb2b100a5a..41c2e7fec76e9 100644
+--- a/ui/views/window/default_frame_view.cc
++++ b/ui/views/window/default_frame_view.cc
+@@ -333,9 +333,7 @@ gfx::Rect DefaultFrameView::IconBounds() const {
+ }
+ 
+ bool DefaultFrameView::ShouldShowTitleBarAndBorder() const {
+-  return !frame_->IsFullscreen() &&
+-         !ViewsDelegate::GetInstance()->WindowManagerProvidesTitleBar(
+-             frame_->IsMaximized());
++  return false;
+ }
+ 
+ bool DefaultFrameView::ShouldShowClientEdge() const {

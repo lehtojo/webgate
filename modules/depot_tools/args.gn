@@ -1,0 +1,37 @@
+use_ozone = true
+target_os = "chromeos"
+ozone_auto_platforms = false
+ozone_platform = "drm"
+ozone_platform_drm = true
+
+# Use system GBM/drm (Mesa), not minigbm
+use_system_minigbm = true
+use_system_libdrm = true
+
+use_xkbcommon = false
+use_evdev = false
+use_glib = false
+use_gtk = false
+use_alsa = false
+use_bluez = true
+use_cups = false
+use_dbus = true
+use_gio = false
+use_kerberos = false
+use_libpci = false
+use_pulseaudio = false
+use_udev = true
+rtc_use_pipewire = false
+v8_enable_lazy_source_positions = false
+use_pangocairo = false
+target_sysroot = ""
+use_sysroot = false
+
+use_system_bluez = true
+enable_floss = true
+floss_enabled_by_default = true
+
+is_debug = false
+is_component_build=false
+enable_precompiled_headers=false
+is_official_build = false
