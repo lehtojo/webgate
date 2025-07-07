@@ -5,7 +5,7 @@ meson setup build --reconfigure \
   -Dgallium-drivers=radeonsi,llvmpipe,softpipe \
   -Dglx=disabled \
   -Dlmsensors=disabled \
-  -Dllvm=true \
+  -Dllvm=enabled \
   -Ddraw-use-llvm=true \
   -Dbuildtype=release \
   -Dprefix=/usr
