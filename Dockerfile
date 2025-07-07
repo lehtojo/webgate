@@ -1,5 +1,5 @@
 # Debian slim builds: Compromise between small and reliable
-FROM debian:trixie-slim
+FROM debian:trixie-20250630-slim
 
 # Install build dependencies
 # TODO: Verify dependencies (kmod might not be needed)
