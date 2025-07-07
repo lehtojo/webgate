@@ -9,7 +9,6 @@ use_system_minigbm = true
 use_system_libdrm = true
 
 use_xkbcommon = false
-use_evdev = false
 use_glib = false
 use_gtk = false
 use_alsa = false
@@ -28,8 +27,6 @@ target_sysroot = ""
 use_sysroot = false
 
 use_system_bluez = true
-enable_floss = true
-floss_enabled_by_default = true
 
 is_debug = false
 is_component_build=false
