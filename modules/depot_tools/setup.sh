@@ -9,9 +9,11 @@ if ! command -v gclient >/dev/null 2>&1; then
 fi
 
 echo "Syncing Chromium source code..."
+run_hooks="false"
 
 if [ ! -d "./src" ]; then
   ./fetch --nohooks --no-history chromium
+  run_hooks="true"
 fi
 
 cd ./src/
@@ -41,8 +43,12 @@ if git diff --quiet; then
   fi
 fi
 
-echo "Installing Chromium build dependencies..."
-./build/install-build-deps.sh
+if [ "$run_hooks" = "true" ]; then
+  echo "Running Chromium hooks..."
+  gclient runhooks
+else
+  echo "Skipping Chromium hooks as they have already been run"
+fi
 
 echo "Generating Chromium build files..."
 
