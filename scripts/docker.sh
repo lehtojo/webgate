@@ -65,10 +65,6 @@ execute_command() {
       echo "==> Executing: bootloader"
       "${scripts_directory}/bootloader.sh" "${out_directory}"
       ;;
-    image)
-      echo "==> Executing: image"
-      "${scripts_directory}/image.sh" "${out_directory}"
-      ;;
     *)
       echo "ERROR: Unknown command: $command"
       return 1
