@@ -32,3 +32,7 @@ is_debug = false
 is_component_build=false
 enable_precompiled_headers=false
 is_official_build = false
+
+# Proprietary codecs (e.g. mp4)
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
