@@ -12,7 +12,7 @@ echo "Syncing Chromium source code..."
 run_hooks="false"
 
 if [ ! -d "./src" ]; then
-  ./fetch --nohooks --no-history chromium
+  ./fetch --nohooks chromium
   run_hooks="true"
 fi
 
@@ -32,7 +32,7 @@ if ! git checkout "$commit_hash"; then
 fi
 
 echo "Updating dependencies and syncing to commit $commit_hash..."
-gclient sync --nohooks --no-history
+gclient sync --nohooks
 
 # Patch the Chromium source code if it has not been patched
 if git diff --quiet; then
