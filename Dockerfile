@@ -50,7 +50,7 @@ RUN apt-get update && \
     libinput-dev \
     libjpeg-dev \
     libkrb5-dev \
-    libllvmspirvlib-19-dev \ 
+    libllvmspirvlib-19-dev \
     libnspr4 \
     libnspr4-dev \
     libnss3 \

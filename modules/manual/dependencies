@@ -11,7 +11,7 @@
 	libelf.so.1 => /lib/x86_64-linux-gnu/libelf.so.1
 	libexpat.so.1 => /lib/x86_64-linux-gnu/libexpat.so.1
 	libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8
-	libgallium-25.2.0-devel.so => /workspace/out/root/usr/lib/x86_64-linux-gnu/libgallium-25.2.0-devel.so
+	libgallium-25.2.0-rc1.so => /workspace/out/root/usr/lib/x86_64-linux-gnu/libgallium-25.2.0-rc1.so
 	libgbm.so.1 => /workspace/out/root/usr/lib/x86_64-linux-gnu/libgbm.so.1
 	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1
 	liblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5
