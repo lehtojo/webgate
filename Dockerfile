@@ -32,6 +32,7 @@ RUN apt-get update && \
     gperf \
     jq \
     kmod \
+    libasound2-dev \
     libbluetooth-dev \
     libbz2-dev \
     libcap-dev \

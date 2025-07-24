@@ -8,19 +8,21 @@ ozone_platform_drm = true
 use_system_minigbm = true
 use_system_libdrm = true
 
+# Audio
+rtc_use_pipewire = false
+use_alsa = true
+use_pulseaudio = false
+
 use_xkbcommon = false
 use_glib = false
 use_gtk = false
-use_alsa = false
 use_bluez = true
 use_cups = false
 use_dbus = true
 use_gio = false
 use_kerberos = false
 use_libpci = false
-use_pulseaudio = false
 use_udev = true
-rtc_use_pipewire = false
 v8_enable_lazy_source_positions = false
 use_pangocairo = false
 target_sysroot = ""
